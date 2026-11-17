@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Recharge Expres",
+    "slug": "recharge-expres-superapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/assets/aistudio/file_00000000e72c8211a95b310a81d8175f_7704191e.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "backgroundColor": "#0039A6",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rechargeexpres.fintech",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Recharge Expres requires camera access to scan BharatQR and UPI QR codes for instant payments."
+      }
+    },
+    "android": {
+      "package": "com.rechargeexpres.fintech",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0039A6"
+      },
+      "permissions": [
+        "CAMERA",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "5b547c8c-d099-41cf-88c7-46f954987183"
+      }
+    }
+  }
+}

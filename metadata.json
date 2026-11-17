@@ -1,0 +1,6 @@
+{
+  "name": "Recharge Expres — Fintech Super App & Admin Suite",
+  "description": "Complete multi-platform fintech super application with double-entry wallet ledger, BBPS recharges and bill payments, UPI Scan & Pay, merchant gateways, WhatsApp Cloud API OTP and alerts, staff RBAC console, and super admin dashboard.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

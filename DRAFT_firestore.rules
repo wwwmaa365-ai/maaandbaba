@@ -1,0 +1,366 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'www.maa365@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'phone', 'kycStatus', 'walletBalance', 'cashbackEarned', 'referralCode', 'role', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'name', 'email', 'phone', 'kycStatus', 'walletBalance', 'cashbackEarned', 'referralCode', 'referredBy', 'role', 'status', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+        data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 20 &&
+        data.kycStatus is string && data.kycStatus in ['VERIFIED', 'PENDING', 'MIN_KYC'] &&
+        data.walletBalance is number && data.walletBalance >= 0 &&
+        data.cashbackEarned is number && data.cashbackEarned >= 0 &&
+        data.referralCode is string && data.referralCode.size() >= 4 && data.referralCode.size() <= 32 &&
+        (!('referredBy' in data) || (data.referredBy is string && data.referredBy.size() <= 32)) &&
+        data.role is string && data.role in ['CUSTOMER', 'STAFF', 'SUPER_ADMIN'] &&
+        data.status is string && data.status in ['ACTIVE', 'SUSPENDED', 'LOCKED'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'createdAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidLedgerEntry(data) {
+      return data.keys().hasAll(['txId', 'userId', 'entryType', 'category', 'service', 'provider', 'targetAccount', 'amount', 'balanceBefore', 'balanceAfter', 'status', 'idempotencyKey', 'gatewayRef', 'description', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['txId', 'userId', 'entryType', 'category', 'service', 'provider', 'targetAccount', 'amount', 'balanceBefore', 'balanceAfter', 'status', 'idempotencyKey', 'gatewayRef', 'description', 'createdAt', 'updatedAt']) &&
+        data.txId is string && data.txId.size() >= 6 && data.txId.size() <= 64 &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.entryType is string && data.entryType in ['CREDIT', 'DEBIT'] &&
+        data.category is string && data.category in ['ADD_MONEY', 'RECHARGE', 'BILL_PAYMENT', 'UPI_TRANSFER', 'BANK_PAYOUT', 'CASHBACK', 'REFERRAL_BONUS', 'REFUND', 'ADMIN_ADJUSTMENT'] &&
+        data['service'] is string && data['service'].size() >= 2 && data['service'].size() <= 80 &&
+        data.provider is string && data.provider.size() >= 2 && data.provider.size() <= 80 &&
+        data.targetAccount is string && data.targetAccount.size() >= 2 && data.targetAccount.size() <= 100 &&
+        data.amount is number && data.amount > 0 &&
+        data.balanceBefore is number && data.balanceBefore >= 0 &&
+        data.balanceAfter is number && data.balanceAfter >= 0 &&
+        data.status is string && data.status in ['SUCCESS', 'PENDING', 'FAILED', 'REFUNDED'] &&
+        data.idempotencyKey is string && data.idempotencyKey.size() >= 6 && data.idempotencyKey.size() <= 80 &&
+        data.gatewayRef is string && data.gatewayRef.size() >= 2 && data.gatewayRef.size() <= 80 &&
+        data.description is string && data.description.size() >= 2 && data.description.size() <= 240 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidMerchant(data) {
+      return data.keys().hasAll(['name', 'gatewayType', 'merchantIdCode', 'apiKeyMasked', 'webhookUrl', 'isDefault', 'enabled', 'environment', 'status', 'updatedBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'gatewayType', 'merchantIdCode', 'apiKeyMasked', 'webhookUrl', 'isDefault', 'enabled', 'environment', 'status', 'updatedBy', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+        data.gatewayType is string && data.gatewayType in ['PAYTM', 'PHONEPE', 'RAZORPAY', 'CASHFREE', 'CUSTOM'] &&
+        data.merchantIdCode is string && data.merchantIdCode.size() >= 2 && data.merchantIdCode.size() <= 80 &&
+        data.apiKeyMasked is string && data.apiKeyMasked.size() >= 4 && data.apiKeyMasked.size() <= 120 &&
+        data.webhookUrl is string && data.webhookUrl.size() >= 8 && data.webhookUrl.size() <= 200 &&
+        data.isDefault is bool &&
+        data.enabled is bool &&
+        data.environment is string && data.environment in ['PRODUCTION', 'SANDBOX'] &&
+        data.status is string && data.status in ['VERIFIED', 'TESTING', 'DISABLED'] &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidRechargeProvider(data) {
+      return data.keys().hasAll(['name', 'baseUrl', 'apiTokenMasked', 'rechargeEndpoint', 'statusEndpoint', 'balanceEndpoint', 'callbackUrl', 'priority', 'commissionPercent', 'enabled', 'balance', 'updatedBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'baseUrl', 'apiTokenMasked', 'rechargeEndpoint', 'statusEndpoint', 'balanceEndpoint', 'callbackUrl', 'priority', 'commissionPercent', 'enabled', 'balance', 'updatedBy', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+        data.baseUrl is string && data.baseUrl.size() >= 8 && data.baseUrl.size() <= 200 &&
+        data.apiTokenMasked is string && data.apiTokenMasked.size() >= 4 && data.apiTokenMasked.size() <= 120 &&
+        data.rechargeEndpoint is string && data.rechargeEndpoint.size() >= 2 && data.rechargeEndpoint.size() <= 120 &&
+        data.statusEndpoint is string && data.statusEndpoint.size() >= 2 && data.statusEndpoint.size() <= 120 &&
+        data.balanceEndpoint is string && data.balanceEndpoint.size() >= 2 && data.balanceEndpoint.size() <= 120 &&
+        data.callbackUrl is string && data.callbackUrl.size() >= 8 && data.callbackUrl.size() <= 200 &&
+        data.priority is number && data.priority >= 1 && data.priority <= 100 &&
+        data.commissionPercent is number && data.commissionPercent >= 0 && data.commissionPercent <= 25 &&
+        data.enabled is bool &&
+        data.balance is number && data.balance >= 0 &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidWhatsAppConfig(data) {
+      return data.keys().hasAll(['businessPhone', 'phoneNumberId', 'wabaId', 'accessTokenMasked', 'webhookVerifyToken', 'otpExpirySeconds', 'maxResendAttempts', 'enabled', 'updatedBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['businessPhone', 'phoneNumberId', 'wabaId', 'accessTokenMasked', 'webhookVerifyToken', 'otpExpirySeconds', 'maxResendAttempts', 'enabled', 'updatedBy', 'createdAt', 'updatedAt']) &&
+        data.businessPhone is string && data.businessPhone.size() >= 8 && data.businessPhone.size() <= 24 &&
+        data.phoneNumberId is string && data.phoneNumberId.size() >= 4 && data.phoneNumberId.size() <= 64 &&
+        data.wabaId is string && data.wabaId.size() >= 4 && data.wabaId.size() <= 64 &&
+        data.accessTokenMasked is string && data.accessTokenMasked.size() >= 4 && data.accessTokenMasked.size() <= 128 &&
+        data.webhookVerifyToken is string && data.webhookVerifyToken.size() >= 4 && data.webhookVerifyToken.size() <= 128 &&
+        data.otpExpirySeconds is number && data.otpExpirySeconds >= 60 && data.otpExpirySeconds <= 900 &&
+        data.maxResendAttempts is number && data.maxResendAttempts >= 1 && data.maxResendAttempts <= 10 &&
+        data.enabled is bool &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPayoutRequest(data) {
+      return data.keys().hasAll(['userId', 'userName', 'accountHolder', 'accountNumberMasked', 'ifsc', 'mode', 'amount', 'fee', 'status', 'utrNumber', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['userId', 'userName', 'accountHolder', 'accountNumberMasked', 'ifsc', 'mode', 'amount', 'fee', 'status', 'utrNumber', 'createdAt', 'updatedAt']) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 100 &&
+        data.accountHolder is string && data.accountHolder.size() >= 2 && data.accountHolder.size() <= 100 &&
+        data.accountNumberMasked is string && data.accountNumberMasked.size() >= 4 && data.accountNumberMasked.size() <= 40 &&
+        data.ifsc is string && data.ifsc.size() >= 4 && data.ifsc.size() <= 20 &&
+        data.mode is string && data.mode in ['IMPS', 'NEFT', 'UPI'] &&
+        data.amount is number && data.amount > 0 &&
+        data.fee is number && data.fee >= 0 &&
+        data.status is string && data.status in ['PENDING_APPROVAL', 'PROCESSING', 'SETTLED', 'REJECTED'] &&
+        data.utrNumber is string && data.utrNumber.size() >= 2 && data.utrNumber.size() <= 64 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidStaffMember(data) {
+      return data.keys().hasAll(['name', 'email', 'department', 'roleTitle', 'permissions', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'email', 'department', 'roleTitle', 'permissions', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 150 &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 60 &&
+        data.roleTitle is string && data.roleTitle.size() >= 2 && data.roleTitle.size() <= 60 &&
+        data.permissions is string && data.permissions.size() >= 2 && data.permissions.size() <= 250 &&
+        data.status is string && data.status in ['ACTIVE', 'SUSPENDED'] &&
+        data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSupportTicket(data) {
+      return data.keys().hasAll(['userId', 'userName', 'txId', 'subject', 'category', 'amount', 'status', 'resolutionNote', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['userId', 'userName', 'txId', 'subject', 'category', 'amount', 'status', 'resolutionNote', 'createdAt', 'updatedAt']) &&
+        data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 100 &&
+        data.txId is string && data.txId.size() >= 2 && data.txId.size() <= 64 &&
+        data.subject is string && data.subject.size() >= 3 && data.subject.size() <= 140 &&
+        data.category is string && data.category in ['RECHARGE_DISPUTE', 'REFUND_REQUEST', 'WALLET_ISSUE', 'KYC_VERIFICATION', 'GENERAL'] &&
+        data.amount is number && data.amount >= 0 &&
+        data.status is string && data.status in ['OPEN', 'IN_REVIEW', 'RESOLVED', 'REFUND_APPROVED', 'REJECTED'] &&
+        data.resolutionNote is string && data.resolutionNote.size() >= 2 && data.resolutionNote.size() <= 300 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['actorUid', 'actorEmail', 'action', 'module', 'targetId', 'details', 'createdAt']) &&
+        data.keys().hasOnly(['actorUid', 'actorEmail', 'action', 'module', 'targetId', 'details', 'createdAt']) &&
+        data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 && data.actorUid.matches('^[a-zA-Z0-9_\\-]+$') &&
+        data.actorEmail is string && data.actorEmail.size() >= 3 && data.actorEmail.size() <= 150 &&
+        data.action is string && data.action.size() >= 2 && data.action.size() <= 100 &&
+        data.module is string && data.module.size() >= 2 && data.module.size() <= 60 &&
+        data.targetId is string && data.targetId.size() >= 1 && data.targetId.size() <= 128 &&
+        data.details is string && data.details.size() >= 2 && data.details.size() <= 300 &&
+        data.createdAt is timestamp;
+    }
+
+    // 1. Users Collection (PII Isolated to Owner or Admin)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+      allow create: if isValidId(userId) && isValidUser(incoming()) &&
+        incoming().uid == userId &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        ((isOwner(userId) && incoming().role == 'CUSTOMER') || isAdmin());
+      allow update: if isValidId(userId) && isValidUser(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (isOwner(userId) &&
+            incoming().role == existing().role &&
+            incoming().status == existing().status &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'kycStatus', 'walletBalance', 'cashbackEarned', 'referredBy', 'updatedAt']))
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 2. Admins Registry
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(adminId) && isValidAdminRecord(incoming()) &&
+        incoming().uid == adminId &&
+        incoming().createdAt == request.time &&
+        isAdmin();
+      allow update, delete: if isValidId(adminId) && isAdmin();
+    }
+
+    // 3. Double-Entry Wallet Ledger
+    match /ledger/{entryId} {
+      allow get: if isValidId(entryId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(entryId) && isValidLedgerEntry(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (incoming().userId == request.auth.uid || isAdmin()) &&
+        exists(/databases/$(database)/documents/users/$(incoming().userId));
+      allow update: if isValidId(entryId) && isValidLedgerEntry(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().txId == existing().txId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (existing().userId == request.auth.uid &&
+            existing().status == 'PENDING' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'gatewayRef', 'description', 'updatedAt']))
+        );
+      allow delete: if false;
+    }
+
+    // 4. Payment Merchant Gateways
+    match /merchants/{merchantId} {
+      allow get: if isValidId(merchantId) && isSignedIn() && (existing().enabled == true || isAdmin());
+      allow list: if isSignedIn() && (existing().enabled == true || isAdmin());
+      allow create: if isValidId(merchantId) && isValidMerchant(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid &&
+        isAdmin();
+      allow update: if isValidId(merchantId) && isValidMerchant(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid &&
+        isAdmin();
+      allow delete: if isValidId(merchantId) && isAdmin();
+    }
+
+    // 5. Recharge & BBPS API Providers
+    match /rechargeProviders/{providerId} {
+      allow get: if isValidId(providerId) && isSignedIn() && (existing().enabled == true || isAdmin());
+      allow list: if isSignedIn() && (existing().enabled == true || isAdmin());
+      allow create: if isValidId(providerId) && isValidRechargeProvider(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid &&
+        isAdmin();
+      allow update: if isValidId(providerId) && isValidRechargeProvider(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid &&
+        isAdmin();
+      allow delete: if isValidId(providerId) && isAdmin();
+    }
+
+    // 6. WhatsApp Business Cloud API Config
+    match /whatsappConfig/{configId} {
+      allow get: if isValidId(configId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(configId) && isValidWhatsAppConfig(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid &&
+        isAdmin();
+      allow update: if isValidId(configId) && isValidWhatsAppConfig(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid &&
+        isAdmin();
+      allow delete: if isValidId(configId) && isAdmin();
+    }
+
+    // 7. Bank Transfer & UPI Payout Requests
+    match /payoutRequests/{payoutId} {
+      allow get: if isValidId(payoutId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(payoutId) && isValidPayoutRequest(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (incoming().userId == request.auth.uid || isAdmin()) &&
+        exists(/databases/$(database)/documents/users/$(incoming().userId));
+      allow update: if isValidId(payoutId) && isValidPayoutRequest(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow delete: if isValidId(payoutId) && isAdmin();
+    }
+
+    // 8. Role-Based Staff Members
+    match /staffMembers/{staffId} {
+      allow get: if isValidId(staffId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(staffId) && isValidStaffMember(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        incoming().createdBy == request.auth.uid &&
+        isAdmin();
+      allow update: if isValidId(staffId) && isValidStaffMember(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        isAdmin();
+      allow delete: if isValidId(staffId) && isAdmin();
+    }
+
+    // 9. Customer Support & Refund Tickets
+    match /supportTickets/{ticketId} {
+      allow get: if isValidId(ticketId) && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow create: if isValidId(ticketId) && isValidSupportTicket(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (incoming().userId == request.auth.uid || isAdmin()) &&
+        exists(/databases/$(database)/documents/users/$(incoming().userId));
+      allow update: if isValidId(ticketId) && isValidSupportTicket(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (existing().userId == request.auth.uid &&
+            existing().status == 'OPEN' &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['subject', 'resolutionNote', 'updatedAt']))
+        );
+      allow delete: if isValidId(ticketId) && isAdmin();
+    }
+
+    // 10. Immutable Security & Compliance Audit Logs
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && (existing().actorUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().actorUid == request.auth.uid || isAdmin());
+      allow create: if isValidId(logId) && isValidAuditLog(incoming()) &&
+        isSignedIn() &&
+        incoming().actorUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+  }
+}

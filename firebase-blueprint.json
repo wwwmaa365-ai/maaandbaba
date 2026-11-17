@@ -1,0 +1,233 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Customer, Staff, or Admin account with KYC status and verified wallet balance.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "phone": { "type": "string", "minLength": 10, "maxLength": 20 },
+        "kycStatus": { "type": "string", "enum": ["VERIFIED", "PENDING", "MIN_KYC"] },
+        "walletBalance": { "type": "number" },
+        "cashbackEarned": { "type": "number" },
+        "referralCode": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "referredBy": { "type": "string", "maxLength": 32 },
+        "role": { "type": "string", "enum": ["CUSTOMER", "STAFF", "SUPER_ADMIN"] },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED", "LOCKED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "phone", "kycStatus", "walletBalance", "cashbackEarned", "referralCode", "role", "status", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted administrator lookup record.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 150 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "LedgerEntry": {
+      "title": "LedgerEntry",
+      "description": "Double-entry immutable wallet transaction record.",
+      "type": "object",
+      "properties": {
+        "txId": { "type": "string", "minLength": 6, "maxLength": 64 },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "entryType": { "type": "string", "enum": ["CREDIT", "DEBIT"] },
+        "category": { "type": "string", "enum": ["ADD_MONEY", "RECHARGE", "BILL_PAYMENT", "UPI_TRANSFER", "BANK_PAYOUT", "CASHBACK", "REFERRAL_BONUS", "REFUND", "ADMIN_ADJUSTMENT"] },
+        "service": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "provider": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "targetAccount": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "amount": { "type": "number" },
+        "balanceBefore": { "type": "number" },
+        "balanceAfter": { "type": "number" },
+        "status": { "type": "string", "enum": ["SUCCESS", "PENDING", "FAILED", "REFUNDED"] },
+        "idempotencyKey": { "type": "string", "minLength": 6, "maxLength": 80 },
+        "gatewayRef": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "description": { "type": "string", "minLength": 2, "maxLength": 240 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["txId", "userId", "entryType", "category", "service", "provider", "targetAccount", "amount", "balanceBefore", "balanceAfter", "status", "idempotencyKey", "gatewayRef", "description", "createdAt", "updatedAt"]
+    },
+    "MerchantGateway": {
+      "title": "MerchantGateway",
+      "description": "Authorized payment merchant gateway configuration.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "gatewayType": { "type": "string", "enum": ["PAYTM", "PHONEPE", "RAZORPAY", "CASHFREE", "CUSTOM"] },
+        "merchantIdCode": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "apiKeyMasked": { "type": "string", "minLength": 4, "maxLength": 120 },
+        "webhookUrl": { "type": "string", "minLength": 8, "maxLength": 200 },
+        "isDefault": { "type": "boolean" },
+        "enabled": { "type": "boolean" },
+        "environment": { "type": "string", "enum": ["PRODUCTION", "SANDBOX"] },
+        "status": { "type": "string", "enum": ["VERIFIED", "TESTING", "DISABLED"] },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "gatewayType", "merchantIdCode", "apiKeyMasked", "webhookUrl", "isDefault", "enabled", "environment", "status", "updatedBy", "createdAt", "updatedAt"]
+    },
+    "RechargeProvider": {
+      "title": "RechargeProvider",
+      "description": "Authorized multi-provider BBPS & Recharge API configuration.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "baseUrl": { "type": "string", "minLength": 8, "maxLength": 200 },
+        "apiTokenMasked": { "type": "string", "minLength": 4, "maxLength": 120 },
+        "rechargeEndpoint": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "statusEndpoint": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "balanceEndpoint": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "callbackUrl": { "type": "string", "minLength": 8, "maxLength": 200 },
+        "priority": { "type": "number" },
+        "commissionPercent": { "type": "number" },
+        "enabled": { "type": "boolean" },
+        "balance": { "type": "number" },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "baseUrl", "apiTokenMasked", "rechargeEndpoint", "statusEndpoint", "balanceEndpoint", "callbackUrl", "priority", "commissionPercent", "enabled", "balance", "updatedBy", "createdAt", "updatedAt"]
+    },
+    "WhatsAppConfig": {
+      "title": "WhatsAppConfig",
+      "description": "Meta WhatsApp Business Cloud API configuration and OTP rules.",
+      "type": "object",
+      "properties": {
+        "businessPhone": { "type": "string", "minLength": 8, "maxLength": 24 },
+        "phoneNumberId": { "type": "string", "minLength": 4, "maxLength": 64 },
+        "wabaId": { "type": "string", "minLength": 4, "maxLength": 64 },
+        "accessTokenMasked": { "type": "string", "minLength": 4, "maxLength": 128 },
+        "webhookVerifyToken": { "type": "string", "minLength": 4, "maxLength": 128 },
+        "otpExpirySeconds": { "type": "number" },
+        "maxResendAttempts": { "type": "number" },
+        "enabled": { "type": "boolean" },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["businessPhone", "phoneNumberId", "wabaId", "accessTokenMasked", "webhookVerifyToken", "otpExpirySeconds", "maxResendAttempts", "enabled", "updatedBy", "createdAt", "updatedAt"]
+    },
+    "PayoutRequest": {
+      "title": "PayoutRequest",
+      "description": "Authorized bank withdrawal or UPI payout request.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "accountHolder": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "accountNumberMasked": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "ifsc": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "mode": { "type": "string", "enum": ["IMPS", "NEFT", "UPI"] },
+        "amount": { "type": "number" },
+        "fee": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING_APPROVAL", "PROCESSING", "SETTLED", "REJECTED"] },
+        "utrNumber": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "accountHolder", "accountNumberMasked", "ifsc", "mode", "amount", "fee", "status", "utrNumber", "createdAt", "updatedAt"]
+    },
+    "StaffMember": {
+      "title": "StaffMember",
+      "description": "Role-based staff member account with restricted permissions.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "department": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "roleTitle": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "permissions": { "type": "string", "minLength": 2, "maxLength": 250 },
+        "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED"] },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "department", "roleTitle", "permissions", "status", "createdBy", "createdAt", "updatedAt"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Customer support dispute or refund ticket.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "txId": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "subject": { "type": "string", "minLength": 3, "maxLength": 140 },
+        "category": { "type": "string", "enum": ["RECHARGE_DISPUTE", "REFUND_REQUEST", "WALLET_ISSUE", "KYC_VERIFICATION", "GENERAL"] },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["OPEN", "IN_REVIEW", "RESOLVED", "REFUND_APPROVED", "REJECTED"] },
+        "resolutionNote": { "type": "string", "minLength": 2, "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "txId", "subject", "category", "amount", "status", "resolutionNote", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable security and compliance audit trail entry.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "actorEmail": { "type": "string", "minLength": 3, "maxLength": 150 },
+        "action": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "module": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "details": { "type": "string", "minLength": 2, "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorUid", "actorEmail", "action", "module", "targetId", "details", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Customer and staff user profile records."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Authorized super admin registry."
+    },
+    "/ledger/{entryId}": {
+      "schema": { "$ref": "#/entities/LedgerEntry" },
+      "description": "Double-entry immutable wallet transaction journal."
+    },
+    "/merchants/{merchantId}": {
+      "schema": { "$ref": "#/entities/MerchantGateway" },
+      "description": "Authorized payment merchant gateway integrations."
+    },
+    "/rechargeProviders/{providerId}": {
+      "schema": { "$ref": "#/entities/RechargeProvider" },
+      "description": "Multi-provider BBPS and recharge API configurations."
+    },
+    "/whatsappConfig/{configId}": {
+      "schema": { "$ref": "#/entities/WhatsAppConfig" },
+      "description": "WhatsApp Business Cloud API settings."
+    },
+    "/payoutRequests/{payoutId}": {
+      "schema": { "$ref": "#/entities/PayoutRequest" },
+      "description": "Bank withdrawal and UPI payout queue."
+    },
+    "/staffMembers/{staffId}": {
+      "schema": { "$ref": "#/entities/StaffMember" },
+      "description": "Role-based staff accounts and permission assignments."
+    },
+    "/supportTickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/SupportTicket" },
+      "description": "Customer support tickets and refund requests."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Security and compliance audit logs."
+    }
+  }
+}

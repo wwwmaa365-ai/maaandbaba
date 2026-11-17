@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var OrigWebSocket = window.WebSocket;
+        if (!OrigWebSocket) return;
+        function ViteSafeWebSocket(url, protocols) {
+          var urlStr = String(url || '');
+          var protoStr = String(protocols || '');
+          if (
+            protoStr.indexOf('vite') !== -1 ||
+            urlStr.indexOf('vite') !== -1 ||
+            urlStr.indexOf('token=') !== -1 ||
+            urlStr.indexOf(':24678') !== -1
+          ) {
+            var dummy = new EventTarget();
+            dummy.url = urlStr;
+            dummy.readyState = 1;
+            dummy.protocol = protoStr;
+            dummy.extensions = '';
+            dummy.bufferedAmount = 0;
+            dummy.binaryType = 'blob';
+            dummy.send = function () {};
+            dummy.close = function () {
+              dummy.readyState = 3;
+            };
+            dummy.onopen = null;
+            dummy.onmessage = null;
+            dummy.onerror = null;
+            dummy.onclose = null;
+            return dummy;
+          }
+          return protocols !== undefined
+            ? new OrigWebSocket(url, protocols)
+            : new OrigWebSocket(url);
+        }
+        ViteSafeWebSocket.prototype = OrigWebSocket.prototype;
+        ViteSafeWebSocket.CONNECTING = 0;
+        ViteSafeWebSocket.OPEN = 1;
+        ViteSafeWebSocket.CLOSING = 2;
+        ViteSafeWebSocket.CLOSED = 3;
+        window.WebSocket = ViteSafeWebSocket;
+      })();
+    </script>
+    <title>Recharge Expres — Fintech Super App & Admin Suite</title>
+    <meta name="description" content="Complete multi-platform fintech super application with double-entry wallet ledger, BBPS recharges and bill payments, UPI Scan & Pay, merchant gateways, WhatsApp Cloud API OTP and alerts, staff RBAC console, and super admin dashboard." />
+    <meta property="og:title" content="Recharge Expres — Fintech Super App & Admin Suite" />
+    <meta property="og:description" content="Complete multi-platform fintech super application with double-entry wallet ledger, BBPS recharges and bill payments, UPI Scan & Pay, merchant gateways, WhatsApp Cloud API OTP and alerts, staff RBAC console, and super admin dashboard." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-blue-600 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
