@@ -84,7 +84,6 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CI: true
 
 jobs:
@@ -100,20 +99,26 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
 
       - name: Setup Java JDK 21 for Android Gradle
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Configure Pre-Installed Android SDK & Accept Licenses
+        run: |
+          SDK_DIR="\${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=\${SDK_DIR}" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=\${SDK_DIR}" >> "$GITHUB_ENV"
+          if [ -x "\${SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "\${SDK_DIR}/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
+          fi
 
-      - name: Install Project Dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+      - name: Clean Lockfiles & Install Project Dependencies
+        run: |
+          rm -f bun.lock bun.lockb
+          npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Build Production Web Bundle (dist)
         run: |
@@ -122,7 +127,6 @@ jobs:
 
       - name: Initialize Capacitor Android Project & Sync Web Assets
         run: |
-          npm install --no-save --legacy-peer-deps @capacitor/core@^7.0.0 @capacitor/cli@^7.0.0 @capacitor/android@^7.0.0
           if [ ! -d "android" ]; then
             npx cap add android
           fi
@@ -135,7 +139,7 @@ jobs:
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Recharge Expres APK Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Recharge-Expres-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
