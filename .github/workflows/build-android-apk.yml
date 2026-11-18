@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
 jobs:
   build-apk:
     name: Build Installable Android APK
@@ -12,13 +16,12 @@ jobs:
 
     steps:
       - name: Checkout GitHub Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: '22'
 
       - name: Setup Java JDK 21 for Android Gradle
         uses: actions/setup-java@v4
@@ -29,15 +32,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Application Dependencies
-        run: npm install --legacy-peer-deps
+      - name: Clean Lockfiles & Install Project Dependencies
+        run: |
+          rm -f bun.lock bun.lockb
+          npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Build Production Web Bundle (dist)
-        run: npm run build
-
-      - name: Initialize Capacitor Android Project & Sync Assets
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android --no-save --legacy-peer-deps
+          npm run build
+          test -f dist/index.html
+
+      - name: Initialize Capacitor Android Project & Sync Web Assets
+        run: |
+          npm install --no-save --legacy-peer-deps @capacitor/core@^7.0.0 @capacitor/cli@^7.0.0 @capacitor/android@^7.0.0
           if [ ! -d "android" ]; then
             npx cap add android
           fi
@@ -47,7 +54,7 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Recharge Expres APK Artifact
         uses: actions/upload-artifact@v4
@@ -55,3 +62,4 @@ jobs:
           name: Recharge-Expres-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 30

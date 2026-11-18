@@ -83,42 +83,71 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CI: true
+
 jobs:
   build-apk:
     name: Build Installable Android APK
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 22 LTS
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: '22'
           cache: 'npm'
-      - uses: actions/setup-java@v4
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java JDK 21 for Android Gradle
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
-      - uses: android-actions/setup-android@v3
-      - run: npm install --legacy-peer-deps
-      - run: npm run build
-      - run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android --no-save --legacy-peer-deps
-          if [ ! -d "android" ]; then npx cap add android; fi
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Project Dependencies
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Build Production Web Bundle (dist)
+        run: |
+          npm run build
+          test -f dist/index.html
+
+      - name: Initialize Capacitor Android Project & Sync Web Assets
+        run: |
+          npm install --no-save --legacy-peer-deps @capacitor/core@^7.0.0 @capacitor/cli@^7.0.0 @capacitor/android@^7.0.0
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
           npx cap sync android
-      - working-directory: ./android
+
+      - name: Assemble Installable Android APK via Gradle
+        working-directory: ./android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
-      - uses: actions/upload-artifact@v4
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload Recharge Expres APK Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: Recharge-Expres-Android-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk`;
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30`;
 
 export const DeliverablesAndLegalView: React.FC<{ mode: 'DELIVERABLES' | 'LEGAL' }> = ({
   mode,
 }) => {
   const [selectedDoc, setSelectedDoc] = useState<
     'EAS_APK_GUIDE' | 'GITHUB_ACTION' | 'EXPO_MOBILE' | 'POSTGRES_SQL' | 'EAS_JSON'
-  >('EAS_APK_GUIDE');
+  >('GITHUB_ACTION');
   const [copied, setCopied] = useState(false);
 
   const [selectedLegalTab, setSelectedLegalTab] = useState<

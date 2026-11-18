@@ -2,7 +2,6 @@
   "appId": "com.rechargeexpres.fintech",
   "appName": "Recharge Expres",
   "webDir": "dist",
-  "bundledWebRuntime": false,
   "server": {
     "androidScheme": "https"
   }
