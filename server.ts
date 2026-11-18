@@ -297,12 +297,26 @@ async function startServer() {
     });
   });
 
+  let viteMiddleware: any = null;
+
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    const vitePromise = createViteServer({
       server: { middlewareMode: true, hmr: false, watch: null },
       appType: 'spa',
+    }).then((vite) => {
+      viteMiddleware = vite.middlewares;
+      return vite;
     });
-    app.use(vite.middlewares);
+
+    app.use(async (req, res, next) => {
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
+      if (!viteMiddleware) {
+        await vitePromise;
+      }
+      return viteMiddleware(req, res, next);
+    });
   } else {
     const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));

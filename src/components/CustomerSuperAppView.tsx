@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Eye,
   EyeOff,
@@ -19,18 +19,18 @@ import {
   Grid,
   Gift,
   CheckCircle2,
-  ArrowUpRight,
-  ArrowDownLeft,
   Copy,
   Check,
   MessageSquare,
-  HelpCircle,
   Lock,
-  Sparkles,
   Receipt,
   X,
   RefreshCw,
   Volume2,
+  Home,
+  User,
+  Bell,
+  ChevronRight,
 } from 'lucide-react';
 import {
   UserProfile,
@@ -64,6 +64,9 @@ interface CustomerSuperAppViewProps {
   onPrependLedger: (entries: LedgerEntry[]) => void;
   onPrependPayout: (payout: PayoutRequest) => void;
   onPrependTicket: (ticket: SupportTicket) => void;
+  onNavigateView?: (
+    view: 'SUPER_APP' | 'SUPER_ADMIN' | 'STAFF_PANEL' | 'DELIVERABLES' | 'LEGAL'
+  ) => void;
 }
 
 export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
@@ -73,17 +76,25 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
   payouts,
   tickets,
   isSignedIn,
+  onRequireSignIn,
   onUpdateUser,
   onPrependLedger,
   onPrependPayout,
   onPrependTicket,
+  onNavigateView,
 }) => {
   const [showBalance, setShowBalance] = useState(true);
-  const [mobileBottomTab, setMobileBottomTab] = useState<'Home' | 'History' | 'Scan' | 'Offers' | 'Profile'>('Home');
+  const [mobileBottomTab, setMobileBottomTab] = useState<
+    'Home' | 'History' | 'Scan' | 'Offers' | 'Profile'
+  >('Home');
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<
     'RECHARGE' | 'ADD_MONEY' | 'UPI_SCAN' | 'BANK_TRANSFER' | 'WHATSAPP_OTP' | 'SUPPORT'
   >('RECHARGE');
   const [mobileQuickPayOpen, setMobileQuickPayOpen] = useState<boolean>(true);
+
+  const consoleSectionRef = useRef<HTMLDivElement | null>(null);
+  const historySectionRef = useRef<HTMLDivElement | null>(null);
+  const offersSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Recharge & Bill Payment Form State
   const [selectedService, setSelectedService] = useState<string>('Mobile Prepaid');
@@ -91,16 +102,22 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
   const [targetNumber, setTargetNumber] = useState<string>('9876543210');
   const [rechargeAmount, setRechargeAmount] = useState<string>('299');
   const [processingTx, setProcessingTx] = useState(false);
-  const [statusBanner, setStatusBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [statusBanner, setStatusBanner] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [receiptModal, setReceiptModal] = useState<LedgerEntry | null>(null);
-  const [trainCelebration, setTrainCelebration] = useState<RechargeSuccessCelebrationData | null>(null);
+  const [trainCelebration, setTrainCelebration] =
+    useState<RechargeSuccessCelebrationData | null>(null);
 
   // Add Money State
   const [topupAmount, setTopupAmount] = useState<string>('1000');
   const [selectedGateway, setSelectedGateway] = useState<string>(
     merchants.find((m) => m.isDefault)?.name || 'Paytm Payment Gateway'
   );
-  const [verificationMode, setVerificationMode] = useState<'WEBHOOK_HMAC' | 'SCREENSHOT'>('WEBHOOK_HMAC');
+  const [verificationMode, setVerificationMode] = useState<'WEBHOOK_HMAC' | 'SCREENSHOT'>(
+    'WEBHOOK_HMAC'
+  );
 
   // UPI Scan & Send Money State
   const [upiVpa, setUpiVpa] = useState<string>('merchant.store@okaxis');
@@ -108,7 +125,9 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
   const [upiNote, setUpiNote] = useState<string>('Retail Store QR Payment');
 
   // Bank Transfer / Withdrawal State
-  const [beneficiaryName, setBeneficiaryName] = useState<string>(user.name || 'Account Holder');
+  const [beneficiaryName, setBeneficiaryName] = useState<string>(
+    user.name || 'Account Holder'
+  );
   const [accountNumber, setAccountNumber] = useState<string>('501004829102');
   const [ifscCode, setIfscCode] = useState<string>('HDFC0001234');
   const [transferMode, setTransferMode] = useState<'IMPS' | 'NEFT' | 'UPI'>('IMPS');
@@ -122,11 +141,27 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
 
   // Support Ticket State
   const [ticketTxId, setTicketTxId] = useState<string>(ledger[0]?.txId || 'RXP100291');
-  const [ticketCategory, setTicketCategory] = useState<SupportTicket['category']>('RECHARGE_DISPUTE');
+  const [ticketCategory, setTicketCategory] =
+    useState<SupportTicket['category']>('RECHARGE_DISPUTE');
   const [ticketSubject, setTicketSubject] = useState<string>('');
   const [ticketAmount, setTicketAmount] = useState<string>('299');
 
   const [copiedCode, setCopiedCode] = useState(false);
+
+  const openModule = (
+    tab:
+      | 'RECHARGE'
+      | 'ADD_MONEY'
+      | 'UPI_SCAN'
+      | 'BANK_TRANSFER'
+      | 'WHATSAPP_OTP'
+      | 'SUPPORT'
+  ) => {
+    setActiveWorkspaceTab(tab);
+    setTimeout(() => {
+      consoleSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 50);
+  };
 
   const handleSelectService = (serviceName: string) => {
     setSelectedService(serviceName);
@@ -249,7 +284,7 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
       const balanceBefore = Number(user.walletBalance || 0);
       if (balanceBefore < debitAmt) {
         throw new Error(
-          `Insufficient wallet balance (Available: ₹${balanceBefore.toFixed(2)}, Required: ₹${debitAmt.toFixed(2)}). Please click 'Add Money' first.`
+          `Insufficient wallet balance (Available: ₹${balanceBefore.toFixed(2)}, Required: ₹${debitAmt.toFixed(2)}). Please tap 'Add Money' first.`
         );
       }
 
@@ -630,1054 +665,1234 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
   };
 
   const serviceGridItems = [
-    { label: 'Mobile Prepaid', icon: Smartphone, tint: 'text-blue-600 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-400' },
-    { label: 'DTH Recharge', icon: Tv, tint: 'text-sky-600 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400' },
-    { label: 'Electricity Bill', icon: Zap, tint: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60 dark:text-amber-400' },
-    { label: 'Gas Bill', icon: Flame, tint: 'text-rose-600 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-400' },
-    { label: 'Water Bill', icon: Droplets, tint: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-950/60 dark:text-cyan-400' },
-    { label: 'Broadband', icon: Wifi, tint: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 dark:text-indigo-400' },
-    { label: 'Landline', icon: Phone, tint: 'text-blue-700 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-300' },
-    { label: 'Insurance', icon: ShieldCheck, tint: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400' },
-    { label: 'Fastag & Travel', icon: Plane, tint: 'text-violet-600 bg-violet-50 dark:bg-violet-950/60 dark:text-violet-400' },
-    { label: 'Mobile Postpaid', icon: Grid, tint: 'text-teal-600 bg-teal-50 dark:bg-teal-950/60 dark:text-teal-400' },
+    {
+      label: 'Mobile Prepaid',
+      icon: Smartphone,
+      tint: 'text-blue-600 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-400',
+    },
+    {
+      label: 'DTH Recharge',
+      icon: Tv,
+      tint: 'text-sky-600 bg-sky-50 dark:bg-sky-950/60 dark:text-sky-400',
+    },
+    {
+      label: 'Electricity Bill',
+      icon: Zap,
+      tint: 'text-amber-600 bg-amber-50 dark:bg-amber-950/60 dark:text-amber-400',
+    },
+    {
+      label: 'Gas Bill',
+      icon: Flame,
+      tint: 'text-rose-600 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-400',
+    },
+    {
+      label: 'Water Bill',
+      icon: Droplets,
+      tint: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-950/60 dark:text-cyan-400',
+    },
+    {
+      label: 'Broadband',
+      icon: Wifi,
+      tint: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 dark:text-indigo-400',
+    },
+    {
+      label: 'Landline',
+      icon: Phone,
+      tint: 'text-blue-700 bg-blue-50 dark:bg-blue-950/60 dark:text-blue-300',
+    },
+    {
+      label: 'Insurance',
+      icon: ShieldCheck,
+      tint: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-400',
+    },
+    {
+      label: 'Fastag & Travel',
+      icon: Plane,
+      tint: 'text-violet-600 bg-violet-50 dark:bg-violet-950/60 dark:text-violet-400',
+    },
+    {
+      label: 'Mobile Postpaid',
+      icon: Grid,
+      tint: 'text-teal-600 bg-teal-50 dark:bg-teal-950/60 dark:text-teal-400',
+    },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Status Feedback Banner */}
-      {statusBanner && (
-        <div
-          className={`mb-6 p-4 rounded-xl border flex items-center justify-between gap-4 ${
-            statusBanner.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-200'
-              : 'bg-red-50 border-red-200 text-red-900 dark:bg-red-950/50 dark:border-red-800 dark:text-red-200'
-          }`}
-        >
-          <div className="flex items-center gap-3 text-sm font-medium">
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-            <span>{statusBanner.message}</span>
-          </div>
-          <button
-            onClick={() => setStatusBanner(null)}
-            className="text-xs font-semibold underline shrink-0"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Main 12-Column Responsive Architecture: Left Interactive iPhone Super App + Right Full Desktop Transaction Console */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* LEFT COLUMN (5 cols on lg): Interactive iPhone-Inspired Recharge Expres Mobile Super App */}
-        <div className="lg:col-span-5 flex flex-col items-center">
-          <div className="w-full max-w-[410px] rounded-[36px] bg-white dark:bg-slate-900 border-[6px] border-slate-900 dark:border-slate-800 shadow-xl overflow-hidden flex flex-col">
-            {/* iOS Status Bar */}
-            <div className="bg-gradient-to-r from-[#0039A6] via-[#0052FF] to-[#0039A6] text-white px-6 pt-3 pb-2 flex items-center justify-between text-xs font-semibold">
-              <span className="font-mono tabular-nums">9:41</span>
-              <div className="flex items-center gap-2 text-[11px]">
-                <span>5G</span>
-                <span>100%</span>
+    <div className="w-full pb-28">
+      {/* EDGE-TO-EDGE NATIVE ANDROID & iOS HERO HEADER + WALLET BANNER */}
+      <section className="w-full bg-gradient-to-b from-[#0039A6] via-[#0047CC] to-[#002D85] text-white pt-4 pb-6 px-4 sm:px-6 lg:px-8 shadow-md">
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* App Brand Bar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center shadow-inner">
+                <Zap className="w-6 h-6 fill-amber-400 text-amber-300" />
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl font-extrabold tracking-tight leading-none">
+                  Recharge <span className="text-amber-300">Expres</span>
+                </div>
+                <div className="text-xs text-blue-100 mt-1 font-medium">
+                  Fast • Secure • Reliable
+                </div>
               </div>
             </div>
 
-            {/* Recharge Expres Brand Header */}
-            <div className="bg-gradient-to-b from-[#0047CC] to-[#002D85] px-5 pt-2 pb-5 text-white">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300">
-                    <Zap className="w-6 h-6 fill-amber-400 text-amber-300" />
-                  </div>
-                  <div>
-                    <div className="text-lg font-extrabold tracking-tight leading-none">
-                      Recharge <span className="text-amber-300">Expres</span>
-                    </div>
-                    <div className="text-[11px] text-blue-100 mt-1">
-                      Fast · Secure · Reliable
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setActiveWorkspaceTab('WHATSAPP_OTP')}
-                  className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-                  title="Verify WhatsApp OTP"
-                >
-                  <MessageSquare className="w-4 h-4 text-white" />
-                </button>
-              </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => openModule('WHATSAPP_OTP')}
+                className="relative w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+                title="Notifications & WhatsApp Alerts"
+              >
+                <Bell className="w-5 h-5 text-white" />
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center">
+                  3
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileBottomTab('Profile');
+                  openModule('WHATSAPP_OTP');
+                }}
+                className="w-10 h-10 rounded-full bg-white/20 border-2 border-white/60 flex items-center justify-center font-extrabold text-sm text-white hover:bg-white/30 transition-colors"
+                title="Customer Profile & KYC"
+              >
+                {(user.name || 'R').charAt(0).toUpperCase()}
+              </button>
+            </div>
+          </div>
 
-              {/* Premium Blue Wallet Card */}
-              <div className="rounded-2xl bg-gradient-to-r from-[#0066FF] to-[#0040B8] p-4 border border-white/20 shadow-inner">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="flex items-center gap-2 text-xs text-blue-100 font-medium">
-                      <span>Wallet Balance</span>
-                      <button
-                        onClick={() => setShowBalance(!showBalance)}
-                        className="hover:text-white transition-colors"
-                        aria-label="Toggle wallet balance visibility"
-                      >
-                        {showBalance ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                    <div className="text-2xl font-extrabold font-mono tabular-nums tracking-tight mt-0.5">
-                      {showBalance
-                        ? `₹${Number(user.walletBalance || 0).toLocaleString('en-IN', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}`
-                        : '₹••••••'}
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-300 font-medium mt-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>KYC Verified</span>
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono tabular-nums">
-                        Cashback ₹{Number(user.cashbackEarned || 0).toFixed(0)}
-                      </span>
-                    </div>
-                  </div>
-
+          {/* Native Edge-to-Edge Wallet Balance Card */}
+          <div className="rounded-3xl bg-gradient-to-r from-[#0066FF] via-[#0052FF] to-[#0039A6] p-5 border border-white/25 shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-100 font-semibold">
+                  <span>Wallet Balance</span>
                   <button
-                    onClick={() => setActiveWorkspaceTab('ADD_MONEY')}
-                    className="px-4 py-2.5 rounded-full bg-white text-[#0039A6] font-bold text-xs shadow-sm hover:bg-blue-50 transition-colors flex items-center gap-1 whitespace-nowrap shrink-0"
+                    type="button"
+                    onClick={() => setShowBalance(!showBalance)}
+                    className="hover:text-white transition-colors p-0.5"
+                    aria-label="Toggle wallet balance visibility"
                   >
-                    <span>Add Money</span>
-                    <Plus className="w-3.5 h-3.5" />
+                    {showBalance ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
+                <div className="text-3xl sm:text-4xl font-extrabold font-mono tabular-nums tracking-tight mt-1">
+                  {showBalance
+                    ? `₹${Number(user.walletBalance || 0).toLocaleString('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`
+                    : '₹••••••'}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-300 font-semibold mt-2">
+                  <span className="inline-flex items-center gap-1">
+                    <CheckCircle2 className="w-4 h-4" />
+                    KYC Verified
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="font-mono tabular-nums text-amber-200">
+                    Cashback Earned: ₹{Number(user.cashbackEarned || 0).toFixed(2)}
+                  </span>
+                </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => openModule('ADD_MONEY')}
+                className="px-5 py-3 rounded-full bg-white text-[#0039A6] font-extrabold text-xs sm:text-sm shadow-md hover:bg-blue-50 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              >
+                <span>Add Money</span>
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+              </button>
             </div>
+          </div>
+        </div>
+      </section>
 
-            {/* Mobile Scrollable Body */}
-            <div className="p-4 space-y-4 bg-slate-50 dark:bg-slate-950 flex-1">
-              {/* 4 Quick Money Transfer Bar */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800 grid grid-cols-4 divide-x divide-slate-100 dark:divide-slate-800">
-                <button
-                  onClick={() => setActiveWorkspaceTab('UPI_SCAN')}
-                  className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 transition-colors"
-                >
-                  <Send className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-tight text-center">
-                    Send Money
-                  </span>
-                </button>
-                <button
-                  onClick={() => setActiveWorkspaceTab('BANK_TRANSFER')}
-                  className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 transition-colors"
-                >
-                  <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-tight text-center">
-                    Bank Transfer
-                  </span>
-                </button>
-                <button
-                  onClick={() => setActiveWorkspaceTab('UPI_SCAN')}
-                  className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 transition-colors"
-                >
-                  <QrCode className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-tight text-center">
-                    Scan & Pay
-                  </span>
-                </button>
-                <button
-                  onClick={() => setMobileBottomTab('History')}
-                  className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 transition-colors"
-                >
-                  <History className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 leading-tight text-center">
-                    History
-                  </span>
-                </button>
+      {/* MAIN EDGE-TO-EDGE NATIVE APP CONTENT */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 space-y-5">
+        {/* Status Feedback Banner */}
+        {statusBanner && (
+          <div
+            className={`p-4 rounded-2xl border flex items-center justify-between gap-4 ${
+              statusBanner.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-200'
+                : 'bg-red-50 border-red-200 text-red-900 dark:bg-red-950/50 dark:border-red-800 dark:text-red-200'
+            }`}
+          >
+            <div className="flex items-center gap-3 text-xs sm:text-sm font-semibold">
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+              <span>{statusBanner.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setStatusBanner(null)}
+              className="text-xs font-bold underline shrink-0"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* 4-Action Quick Money Transfer Bar (Send Money · Bank Transfer · Scan & Pay · Transaction History) */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs grid grid-cols-4 divide-x divide-slate-100 dark:divide-slate-800">
+          <button
+            type="button"
+            onClick={() => openModule('UPI_SCAN')}
+            className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/70 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Send className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight text-center">
+              Send Money
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openModule('BANK_TRANSFER')}
+            className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/70 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <Landmark className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight text-center">
+              Bank Transfer
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileBottomTab('Scan');
+              openModule('UPI_SCAN');
+            }}
+            className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/70 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <QrCode className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight text-center">
+              Scan & Pay
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileBottomTab('History');
+              historySectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="flex flex-col items-center justify-center gap-1.5 py-1 hover:text-blue-600 active:scale-95 transition-all"
+          >
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 dark:bg-blue-950/70 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <History className="w-5 h-5" />
+            </div>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight text-center">
+              Transaction History
+            </span>
+          </button>
+        </div>
+
+        {/* RESPONSIVE NATIVE APP GRID: Recharges & Quick-Pay + Full Service Execution Console */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* LEFT / PRIMARY MOBILE COLUMN: 10-Service BBPS Grid + Instant Quick-Pay + Cashback Offers */}
+          <div className="lg:col-span-5 space-y-5">
+            {/* 10-Service BBPS & Recharge Grid */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                  Recharges & Bill Payments
+                </span>
+                <span className="text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                  BBPS Verified
+                </span>
               </div>
 
-              {/* 10-Service BBPS & Recharge Grid */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
-                    Recharges & Bill Payments
-                  </span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Tap any service to pay
-                  </span>
-                </div>
-                <div className="grid grid-cols-5 gap-y-4 gap-x-2">
-                  {serviceGridItems.map((item) => {
-                    const IconComponent = item.icon;
-                    const isSelected = selectedService === item.label;
-                    return (
-                      <button
-                        type="button"
-                        key={item.label}
-                        onClick={() => handleSelectService(item.label)}
-                        className="flex flex-col items-center text-center group"
-                      >
-                        <div
-                          className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 ${
-                            item.tint
-                          } ${isSelected ? 'ring-2 ring-blue-600 dark:ring-blue-400' : ''}`}
-                        >
-                          <IconComponent className="w-5 h-5" />
-                        </div>
-                        <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 mt-1.5 leading-tight">
-                          {item.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* In-Phone Instant Recharge & Bill Pay Mini Drawer */}
-                {mobileQuickPayOpen && (
-                  <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400">
-                        Instant {selectedService}
-                      </span>
-                      <span className="text-[11px] font-mono text-slate-500">
-                        {selectedOperator}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-5 gap-2">
-                      <input
-                        type="text"
-                        value={targetNumber}
-                        onChange={(e) => setTargetNumber(e.target.value)}
-                        placeholder="Mobile / Consumer ID"
-                        className="col-span-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-2.5 py-2 text-xs font-mono tabular-nums text-slate-900 dark:text-white"
-                      />
-                      <input
-                        type="number"
-                        min={10}
-                        value={rechargeAmount}
-                        onChange={(e) => setRechargeAmount(e.target.value)}
-                        placeholder="₹ Amt"
-                        className="col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-2.5 py-2 text-xs font-mono tabular-nums text-slate-900 dark:text-white"
-                      />
-                    </div>
+              <div className="grid grid-cols-5 gap-y-4 gap-x-2">
+                {serviceGridItems.map((item) => {
+                  const IconComponent = item.icon;
+                  const isSelected = selectedService === item.label;
+                  return (
                     <button
                       type="button"
-                      disabled={processingTx}
-                      onClick={() => handleRechargeOrBillPay()}
-                      className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                      key={item.label}
+                      onClick={() => handleSelectService(item.label)}
+                      className="flex flex-col items-center text-center group active:scale-95 transition-transform"
                     >
-                      {processingTx ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Zap className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                      )}
-                      <span>
-                        Pay {selectedService} ₹{Number(rechargeAmount || 0).toFixed(0)} Now
+                      <div
+                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-105 ${
+                          item.tint
+                        } ${
+                          isSelected
+                            ? 'ring-2 ring-blue-600 dark:ring-blue-400 shadow-xs'
+                            : ''
+                        }`}
+                      >
+                        <IconComponent className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 mt-1.5 leading-tight">
+                        {item.label}
                       </span>
                     </button>
-                  </div>
-                )}
+                  );
+                })}
               </div>
 
-              {/* Promotional 5% Cashback Banner */}
-              <div className="rounded-2xl bg-gradient-to-r from-[#0039A6] via-[#0052FF] to-[#0284C7] p-4 text-white flex items-center justify-between gap-3">
+              {/* Instant 1-Tap Recharge & Bill Pay Drawer */}
+              {mobileQuickPayOpen && (
+                <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-blue-600 dark:text-blue-400">
+                      Instant {selectedService}
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-slate-500">
+                      {selectedOperator}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    <input
+                      type="text"
+                      value={targetNumber}
+                      onChange={(e) => setTargetNumber(e.target.value)}
+                      placeholder="Mobile / Consumer ID"
+                      className="col-span-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2.5 text-xs font-mono tabular-nums text-slate-900 dark:text-white"
+                    />
+                    <input
+                      type="number"
+                      min={10}
+                      value={rechargeAmount}
+                      onChange={(e) => setRechargeAmount(e.target.value)}
+                      placeholder="₹ Amt"
+                      className="col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2.5 text-xs font-mono tabular-nums text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={processingTx}
+                    onClick={() => handleRechargeOrBillPay()}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all"
+                  >
+                    {processingTx ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+                    )}
+                    <span>
+                      Pay {selectedService} ₹{Number(rechargeAmount || 0).toFixed(0)} Now
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Promotional 5% Cashback Banner & Latest Offers */}
+            <div ref={offersSectionRef} className="space-y-4">
+              <div className="rounded-2xl bg-gradient-to-r from-[#0039A6] via-[#0052FF] to-[#0284C7] p-5 text-white flex items-center justify-between gap-4 shadow-sm">
                 <div>
-                  <div className="text-xs text-blue-100 font-medium">Get up to</div>
-                  <div className="text-xl font-extrabold tracking-tight">
+                  <div className="text-xs text-blue-100 font-semibold">Get up to</div>
+                  <div className="text-2xl font-extrabold tracking-tight mt-0.5">
                     <span className="text-amber-300 font-mono">5%</span> Cashback
                   </div>
-                  <div className="text-[11px] text-blue-100 mt-0.5">
-                    Auto-credited after verified recharge
+                  <div className="text-xs text-blue-100 mt-1">
+                    on Every Verified Prepaid & BBPS Recharge
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleRechargeOrBillPay()}
                   disabled={processingTx}
-                  className="px-3.5 py-2 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition-colors whitespace-nowrap shrink-0"
+                  className="px-4 py-2.5 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs transition-colors whitespace-nowrap shrink-0 shadow-xs"
                 >
                   Recharge Now →
                 </button>
               </div>
 
               {/* Latest Offers Card */}
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                    <Gift className="w-5 h-5" />
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                    <Gift className="w-6 h-6" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white">
-                      Flat 2% Instant Cashback
+                    <div className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">
+                      Flat 10% Cashback & Referral Bonus
                     </div>
-                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                      Code: <span className="font-mono font-semibold text-slate-700 dark:text-slate-200">{user.referralCode}</span> · Referral Active
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Referral Code:{' '}
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        {user.referralCode}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     navigator.clipboard?.writeText(user.referralCode);
                     setCopiedCode(true);
                     setTimeout(() => setCopiedCode(false), 2000);
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors whitespace-nowrap shrink-0 flex items-center gap-1"
+                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
                 >
-                  {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedCode ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                   <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
                 </button>
               </div>
             </div>
-
-            {/* Bottom Navigation Bar (Matching Uploaded Recharge Expres Reference) */}
-            <div className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-3 py-2 grid grid-cols-5 items-center">
-              <button
-                onClick={() => {
-                  setMobileBottomTab('Home');
-                  setActiveWorkspaceTab('RECHARGE');
-                }}
-                className={`flex flex-col items-center py-1 text-[10px] font-semibold ${
-                  mobileBottomTab === 'Home' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'
-                }`}
-              >
-                <Smartphone className="w-4 h-4 mb-0.5" />
-                <span>Home</span>
-              </button>
-              <button
-                onClick={() => setMobileBottomTab('History')}
-                className={`flex flex-col items-center py-1 text-[10px] font-semibold ${
-                  mobileBottomTab === 'History' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'
-                }`}
-              >
-                <History className="w-4 h-4 mb-0.5" />
-                <span>History</span>
-              </button>
-              <div className="flex justify-center">
-                <button
-                  onClick={() => {
-                    setMobileBottomTab('Scan');
-                    setActiveWorkspaceTab('UPI_SCAN');
-                  }}
-                  className="w-11 h-11 -mt-4 rounded-full bg-gradient-to-tr from-[#0039A6] to-[#0066FF] text-white shadow-md flex items-center justify-center hover:scale-105 transition-transform"
-                  title="UPI Scan & Pay"
-                >
-                  <QrCode className="w-5 h-5" />
-                </button>
-              </div>
-              <button
-                onClick={() => setMobileBottomTab('Offers')}
-                className={`flex flex-col items-center py-1 text-[10px] font-semibold ${
-                  mobileBottomTab === 'Offers' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'
-                }`}
-              >
-                <Gift className="w-4 h-4 mb-0.5" />
-                <span>Offers</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMobileBottomTab('Profile');
-                  setActiveWorkspaceTab('WHATSAPP_OTP');
-                }}
-                className={`flex flex-col items-center py-1 text-[10px] font-semibold ${
-                  mobileBottomTab === 'Profile' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4 mb-0.5" />
-                <span>Profile</span>
-              </button>
-            </div>
           </div>
-        </div>
 
-        {/* RIGHT COLUMN (7 cols on lg): Full Interactive Fintech Execution & Double-Entry Ledger Console */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* Interactive Module Switcher */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-            <div className="flex flex-wrap items-center gap-2 pb-4 border-b border-slate-200 dark:border-slate-800">
-              {[
-                { id: 'RECHARGE', label: 'Recharge & Bills' },
-                { id: 'ADD_MONEY', label: 'Add Money (PG)' },
-                { id: 'UPI_SCAN', label: 'UPI Scan & Pay' },
-                { id: 'BANK_TRANSFER', label: 'Bank Withdrawal' },
-                { id: 'WHATSAPP_OTP', label: 'WhatsApp OTP' },
-                { id: 'SUPPORT', label: 'Support & Disputes' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveWorkspaceTab(tab.id as any)}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                    activeWorkspaceTab === tab.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+          {/* RIGHT / FULL SERVICE CONSOLE + ANALYTICS + LEDGER */}
+          <div ref={consoleSectionRef} className="lg:col-span-7 space-y-6">
+            {/* Interactive Module Switcher */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs">
+              <div className="flex items-center gap-2 overflow-x-auto pb-3 border-b border-slate-200 dark:border-slate-800 no-scrollbar">
+                {[
+                  { id: 'RECHARGE', label: 'Recharge & Bills' },
+                  { id: 'ADD_MONEY', label: 'Add Money (PG)' },
+                  { id: 'UPI_SCAN', label: 'UPI Scan & Pay' },
+                  { id: 'BANK_TRANSFER', label: 'Bank Withdrawal' },
+                  { id: 'WHATSAPP_OTP', label: 'WhatsApp OTP' },
+                  { id: 'SUPPORT', label: 'Support & Disputes' },
+                ].map((tab) => (
+                  <button
+                    type="button"
+                    key={tab.id}
+                    onClick={() => setActiveWorkspaceTab(tab.id as any)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors whitespace-nowrap shrink-0 ${
+                      activeWorkspaceTab === tab.id
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-            {/* MODULE 1: RECHARGE & BBPS BILL PAYMENT */}
-            {activeWorkspaceTab === 'RECHARGE' && (
-              <form onSubmit={handleRechargeOrBillPay} className="pt-5 space-y-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                      {selectedService} — Instant BBPS & Operator Execution
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Debits verified wallet balance with idempotency protection and automatic refund on failure.
-                    </p>
-                  </div>
-                  <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-semibold">
-                    2% Instant Cashback
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Service Category
-                    </label>
-                    <select
-                      value={selectedService}
-                      onChange={(e) => handleSelectService(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white"
-                    >
-                      {Object.keys(SERVICE_OPERATORS).map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+              {/* MODULE 1: RECHARGE & BBPS BILL PAYMENT */}
+              {activeWorkspaceTab === 'RECHARGE' && (
+                <form onSubmit={handleRechargeOrBillPay} className="pt-5 space-y-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                        {selectedService} — Instant Operator & BBPS Execution
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Debits verified wallet balance with idempotency protection and automatic refund on failure.
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono text-blue-600 dark:text-blue-400 font-bold shrink-0">
+                      2% Instant Cashback
+                    </span>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Authorized Operator / Biller
-                    </label>
-                    <select
-                      value={selectedOperator}
-                      onChange={(e) => setSelectedOperator(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white"
-                    >
-                      {(SERVICE_OPERATORS[selectedService] || []).map((op) => (
-                        <option key={op} value={op}>
-                          {op}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Mobile / Consumer / Subscriber ID
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={targetNumber}
-                      onChange={(e) => setTargetNumber(e.target.value)}
-                      placeholder="Enter 10-digit mobile or consumer ID"
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min={10}
-                      max={50000}
-                      required
-                      value={rechargeAmount}
-                      onChange={(e) => setRechargeAmount(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Operator Plan Selector */}
-                <div>
-                  <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
-                    Recommended Operator Plans (Click to autofill)
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {PREPAID_PLANS.slice(0, 3).map((plan) => (
-                      <button
-                        type="button"
-                        key={plan.id}
-                        onClick={() => setRechargeAmount(String(plan.amount))}
-                        className={`text-left p-3 rounded-xl border transition-colors ${
-                          Number(rechargeAmount) === plan.amount
-                            ? 'border-blue-600 bg-blue-50/60 dark:bg-blue-950/40 dark:border-blue-500'
-                            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
-                        }`}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Service Category
+                      </label>
+                      <select
+                        value={selectedService}
+                        onChange={(e) => handleSelectService(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-base font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
-                            ₹{plan.amount}
-                          </span>
-                          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
-                            {plan.tag}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                          {plan.data} · {plan.validity}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        {Object.keys(SERVICE_OPERATORS).map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-4">
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    Wallet Balance: <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">₹{Number(user.walletBalance || 0).toFixed(2)}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTrainCelebration({
-                          txId: `BBPS${Date.now().toString().slice(-8)}`,
-                          service: selectedService,
-                          provider: selectedOperator,
-                          targetAccount: targetNumber,
-                          amount: Number(rechargeAmount) || 299,
-                          cashbackAmount: Number(((Number(rechargeAmount) || 299) * 0.02).toFixed(2)),
-                          operatorRef: `OP_EXP_${Date.now().toString().slice(-6)}`,
-                        })
-                      }
-                      className="px-4 py-3 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-500/40 text-amber-900 dark:text-amber-300 font-bold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
-                    >
-                      <Volume2 className="w-4 h-4" />
-                      <span>Test Express Train Sound</span>
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={processingTx}
-                      className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs transition-colors flex items-center gap-2 whitespace-nowrap shrink-0"
-                    >
-                      {processingTx && <RefreshCw className="w-4 h-4 animate-spin" />}
-                      <span>Pay ₹{Number(rechargeAmount || 0).toFixed(2)} from Verified Wallet</span>
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Authorized Operator / Biller
+                      </label>
+                      <select
+                        value={selectedOperator}
+                        onChange={(e) => setSelectedOperator(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white"
+                      >
+                        {(SERVICE_OPERATORS[selectedService] || []).map((op) => (
+                          <option key={op} value={op}>
+                            {op}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-            {/* MODULE 2: ADD MONEY VIA AUTHORIZED PAYMENT GATEWAYS */}
-            {activeWorkspaceTab === 'ADD_MONEY' && (
-              <form onSubmit={handleAddMoney} className="pt-5 space-y-5">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Add Money to Wallet — Cryptographic Webhook Verification
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Rule 3 Enforcement: Wallet credits require HMAC-SHA256 gateway callback verification. Screenshot or SMS claims are strictly rejected.
-                  </p>
-                </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Mobile / Consumer / Subscriber ID
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={targetNumber}
+                        onChange={(e) => setTargetNumber(e.target.value)}
+                        placeholder="Enter 10-digit mobile or consumer ID"
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                      />
+                    </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={10}
+                        max={50000}
+                        required
+                        value={rechargeAmount}
+                        onChange={(e) => setRechargeAmount(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Operator Plan Selector */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Top-Up Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min={10}
-                      max={200000}
-                      required
-                      value={topupAmount}
-                      onChange={(e) => setTopupAmount(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                    />
-                    <div className="flex gap-2 mt-2">
-                      {[500, 1000, 2000, 5000].map((preset) => (
+                    <div className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">
+                      Popular Operator Plans (Tap to autofill)
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      {PREPAID_PLANS.slice(0, 3).map((plan) => (
                         <button
                           type="button"
-                          key={preset}
-                          onClick={() => setTopupAmount(String(preset))}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 hover:bg-blue-50"
+                          key={plan.id}
+                          onClick={() => setRechargeAmount(String(plan.amount))}
+                          className={`text-left p-3 rounded-xl border transition-colors ${
+                            Number(rechargeAmount) === plan.amount
+                              ? 'border-blue-600 bg-blue-50/60 dark:bg-blue-950/40 dark:border-blue-500'
+                              : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                          }`}
                         >
-                          +₹{preset}
+                          <div className="flex items-center justify-between">
+                            <span className="text-base font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
+                              ₹{plan.amount}
+                            </span>
+                            <span className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold">
+                              {plan.tag}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                            {plan.data} · {plan.validity}
+                          </div>
                         </button>
                       ))}
                     </div>
                   </div>
 
+                  <div className="pt-2 flex flex-wrap items-center justify-between gap-4">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      Available Wallet:{' '}
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                        ₹{Number(user.walletBalance || 0).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTrainCelebration({
+                            txId: `BBPS${Date.now().toString().slice(-8)}`,
+                            service: selectedService,
+                            provider: selectedOperator,
+                            targetAccount: targetNumber,
+                            amount: Number(rechargeAmount) || 299,
+                            cashbackAmount: Number(
+                              ((Number(rechargeAmount) || 299) * 0.02).toFixed(2)
+                            ),
+                            operatorRef: `OP_EXP_${Date.now().toString().slice(-6)}`,
+                          })
+                        }
+                        className="px-4 py-3 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-500/40 text-amber-900 dark:text-amber-300 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                        <span>Train Sound</span>
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={processingTx}
+                        className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-initial"
+                      >
+                        {processingTx && <RefreshCw className="w-4 h-4 animate-spin" />}
+                        <span>
+                          Pay ₹{Number(rechargeAmount || 0).toFixed(2)} Now
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* MODULE 2: ADD MONEY VIA AUTHORIZED PAYMENT GATEWAYS */}
+              {activeWorkspaceTab === 'ADD_MONEY' && (
+                <form onSubmit={handleAddMoney} className="pt-5 space-y-5">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                      Authorized Payment Merchant Gateway
-                    </label>
-                    <select
-                      value={selectedGateway}
-                      onChange={(e) => setSelectedGateway(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white"
+                    <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                      Add Money to Wallet — Cryptographic Webhook Verification
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Wallet credits require HMAC-SHA256 gateway callback verification. Screenshot or SMS claims are strictly rejected.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Top-Up Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={10}
+                        max={200000}
+                        required
+                        value={topupAmount}
+                        onChange={(e) => setTopupAmount(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                      />
+                      <div className="flex gap-2 mt-2">
+                        {[500, 1000, 2000, 5000].map((preset) => (
+                          <button
+                            type="button"
+                            key={preset}
+                            onClick={() => setTopupAmount(String(preset))}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-mono font-semibold text-slate-700 dark:text-slate-300 hover:bg-blue-50"
+                          >
+                            +₹{preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                        Authorized Payment Merchant Gateway
+                      </label>
+                      <select
+                        value={selectedGateway}
+                        onChange={(e) => setSelectedGateway(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white"
+                      >
+                        {merchants
+                          .filter((m) => m.enabled)
+                          .map((m) => (
+                            <option key={m.id} value={m.name}>
+                              {m.name} ({m.gatewayType} · {m.environment})
+                            </option>
+                          ))}
+                        {merchants.length === 0 && (
+                          <>
+                            <option value="Paytm Payment Gateway">Paytm Payment Gateway</option>
+                            <option value="Razorpay Enterprise PG">Razorpay Enterprise PG</option>
+                            <option value="PhonePe Payment Gateway">PhonePe Payment Gateway</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                    <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-2">
+                      Callback Verification Protocol
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="verifMode"
+                          checked={verificationMode === 'WEBHOOK_HMAC'}
+                          onChange={() => setVerificationMode('WEBHOOK_HMAC')}
+                        />
+                        <span>Authorized Gateway HMAC-SHA256 Webhook (Compliant)</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="verifMode"
+                          checked={verificationMode === 'SCREENSHOT'}
+                          onChange={() => setVerificationMode('SCREENSHOT')}
+                        />
+                        <span>Unverified Screenshot / SMS Claim (Test Security Rejection)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={processingTx}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs transition-colors flex items-center justify-center gap-2"
                     >
-                      {merchants.filter((m) => m.enabled).map((m) => (
-                        <option key={m.id} value={m.name}>
-                          {m.name} ({m.gatewayType} · {m.environment})
-                        </option>
-                      ))}
-                      {merchants.length === 0 && (
-                        <>
-                          <option value="Paytm Payment Gateway">Paytm Payment Gateway</option>
-                          <option value="Razorpay Enterprise PG">Razorpay Enterprise PG</option>
-                          <option value="PhonePe Payment Gateway">PhonePe Payment Gateway</option>
-                        </>
-                      )}
-                    </select>
+                      <Lock className="w-4 h-4" />
+                      <span>Verify & Credit ₹{Number(topupAmount || 0).toFixed(2)}</span>
+                    </button>
                   </div>
-                </div>
+                </form>
+              )}
 
-                {/* Security Verification Mode Selector (Demonstrates Anti-Screenshot Guard) */}
-                <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-200 mb-2">
-                    Callback Verification Protocol
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="verifMode"
-                        checked={verificationMode === 'WEBHOOK_HMAC'}
-                        onChange={() => setVerificationMode('WEBHOOK_HMAC')}
-                      />
-                      <span>Authorized Gateway HMAC-SHA256 Webhook (Compliant)</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="verifMode"
-                        checked={verificationMode === 'SCREENSHOT'}
-                        onChange={() => setVerificationMode('SCREENSHOT')}
-                      />
-                      <span>Unverified Screenshot / SMS Claim (Test Security Rejection)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={processingTx}
-                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors flex items-center gap-2"
-                  >
-                    <Lock className="w-4 h-4" />
-                    <span>Verify & Credit ₹{Number(topupAmount || 0).toFixed(2)}</span>
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* MODULE 3: UPI SCAN & PAY */}
-            {activeWorkspaceTab === 'UPI_SCAN' && (
-              <form onSubmit={handleUpiPayment} className="pt-5 space-y-5">
-                <div className="flex items-start justify-between gap-4">
+              {/* MODULE 3: UPI SCAN & PAY */}
+              {activeWorkspaceTab === 'UPI_SCAN' && (
+                <form onSubmit={handleUpiPayment} className="pt-5 space-y-5">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                    <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
                       UPI Scan & Pay / VPA Intent Transfer
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Scan any BharatQR / Merchant UPI QR or enter a verified VPA. Never asks for raw UPI PIN on web.
+                      Scan any BharatQR / Merchant UPI QR or enter a verified VPA.
                     </p>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                  <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col items-center text-center">
-                    <QrCode className="w-20 h-20 text-blue-600 dark:text-blue-400 mb-2" />
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      BharatQR / UPI Scanner
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUpiVpa('supermarket.pos@paytm');
-                        setUpiAmount('640');
-                        setUpiNote('BharatQR POS Invoice #9481');
-                      }}
-                      className="mt-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-semibold"
-                    >
-                      Simulate QR Scan
-                    </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                    <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col items-center text-center">
+                      <QrCode className="w-20 h-20 text-blue-600 dark:text-blue-400 mb-2" />
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        BharatQR / UPI Scanner
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUpiVpa('supermarket.pos@paytm');
+                          setUpiAmount('640');
+                          setUpiNote('BharatQR POS Invoice #9481');
+                        }}
+                        className="mt-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-semibold"
+                      >
+                        Simulate QR Scan
+                      </button>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Payee UPI ID (VPA)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={upiVpa}
+                          onChange={(e) => setUpiVpa(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Amount (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            required
+                            value={upiAmount}
+                            onChange={(e) => setUpiAmount(e.target.value)}
+                            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            Payment Remarks
+                          </label>
+                          <input
+                            type="text"
+                            value={upiNote}
+                            onChange={(e) => setUpiNote(e.target.value)}
+                            className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="sm:col-span-2 space-y-3">
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={processingTx}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs transition-colors"
+                    >
+                      Send ₹{Number(upiAmount || 0).toFixed(2)} via Verified UPI Partner
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* MODULE 4: BANK TRANSFER / WALLET WITHDRAWAL */}
+              {activeWorkspaceTab === 'BANK_TRANSFER' && (
+                <form onSubmit={handleBankWithdrawal} className="pt-5 space-y-4">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                      Wallet to Bank Transfer — Authorized Payout Partner
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Creates a double-entry debit and routes settlement through authorized IMPS/NEFT/UPI payout rails.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Payee UPI ID (VPA)
+                        Account Holder Name
                       </label>
                       <input
                         type="text"
                         required
-                        value={upiVpa}
-                        onChange={(e) => setUpiVpa(e.target.value)}
+                        value={beneficiaryName}
+                        onChange={(e) => setBeneficiaryName(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Bank Account Number
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        IFSC Code
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={ifscCode}
+                        onChange={(e) => setIfscCode(e.target.value)}
                         className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                          Mode
+                        </label>
+                        <select
+                          value={transferMode}
+                          onChange={(e) => setTransferMode(e.target.value as any)}
+                          className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                        >
+                          <option value="IMPS">IMPS (₹5 Fee)</option>
+                          <option value="NEFT">NEFT (₹0 Fee)</option>
+                          <option value="UPI">UPI (₹0 Fee)</option>
+                        </select>
+                      </div>
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                           Amount (₹)
                         </label>
                         <input
                           type="number"
-                          min={1}
+                          min={100}
                           required
-                          value={upiAmount}
-                          onChange={(e) => setUpiAmount(e.target.value)}
-                          className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                          Payment Remarks
-                        </label>
-                        <input
-                          type="text"
-                          value={upiNote}
-                          onChange={(e) => setUpiNote(e.target.value)}
-                          className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
+                          value={withdrawAmount}
+                          onChange={(e) => setWithdrawAmount(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={processingTx}
-                    className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors"
-                  >
-                    Send ₹{Number(upiAmount || 0).toFixed(2)} via Verified UPI Partner
-                  </button>
-                </div>
-              </form>
-            )}
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={processingTx}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs"
+                    >
+                      Initiate Authorized Bank Payout
+                    </button>
+                  </div>
+                </form>
+              )}
 
-            {/* MODULE 4: BANK TRANSFER / WALLET WITHDRAWAL */}
-            {activeWorkspaceTab === 'BANK_TRANSFER' && (
-              <form onSubmit={handleBankWithdrawal} className="pt-5 space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                    Wallet to Bank Transfer — Authorized Payout Partner
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Creates a double-entry debit and routes settlement through authorized IMPS/NEFT/UPI payout rails.
-                  </p>
-                </div>
+              {/* MODULE 5: WHATSAPP BUSINESS OTP & PROFILE */}
+              {activeWorkspaceTab === 'WHATSAPP_OTP' && (
+                <div className="pt-5 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                        Customer Profile, KYC & WhatsApp OTP Verification
+                      </h2>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Official Meta Cloud API template verification with 300s expiry and 3-attempt rate limiting.
+                      </p>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      {otpVerified ? 'Mobile Verified' : 'Verification Pending'}
+                    </span>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Account Holder Name
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={beneficiaryName}
-                      onChange={(e) => setBeneficiaryName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Bank Account Number
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={accountNumber}
-                      onChange={(e) => setAccountNumber(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      IFSC Code
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={ifscCode}
-                      onChange={(e) => setIfscCode(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Mode
+                        Customer Mobile Number (+91)
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={otpPhone}
+                          onChange={(e) => setOtpPhone(e.target.value)}
+                          className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSendWhatsAppOtp}
+                          disabled={processingTx}
+                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold whitespace-nowrap shrink-0"
+                        >
+                          Send OTP
+                        </button>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleVerifyWhatsAppOtp}>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        6-Digit OTP Code{' '}
+                        {sandboxOtpPreview ? `(Code: ${sandboxOtpPreview})` : ''}
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={otpInput}
+                          onChange={(e) => setOtpInput(e.target.value)}
+                          placeholder="Enter 6-digit code"
+                          className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
+                        />
+                        <button
+                          type="submit"
+                          disabled={processingTx || !otpInput}
+                          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold whitespace-nowrap shrink-0"
+                        >
+                          Verify OTP
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Quick Navigation to Admin, Staff, APK & Legal Views on Mobile */}
+                  {onNavigateView && (
+                    <div className="pt-3 border-t border-slate-200 dark:border-slate-800">
+                      <div className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2.5">
+                        Platform Consoles & Legal Policies
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onNavigateView('SUPER_ADMIN')}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 text-left flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
+                          <span>Super Admin</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onNavigateView('STAFF_PANEL')}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 text-left flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
+                          <span>Staff Panel</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onNavigateView('DELIVERABLES')}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 text-left flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
+                          <span>APK & Source</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onNavigateView('LEGAL')}
+                          className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 text-left flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
+                        >
+                          <span>Legal & Terms</span>
+                          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* MODULE 6: CUSTOMER SUPPORT & REFUND DISPUTES */}
+              {activeWorkspaceTab === 'SUPPORT' && (
+                <form onSubmit={handleCreateTicket} className="pt-5 space-y-4">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white">
+                      24x7 Customer Support & Automated Refund Desk
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      Raise a dispute for pending recharges or failed debits. Tickets sync directly to the Staff & Admin Panels.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Transaction ID
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={ticketTxId}
+                        onChange={(e) => setTicketTxId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                        Issue Type
                       </label>
                       <select
-                        value={transferMode}
-                        onChange={(e) => setTransferMode(e.target.value as any)}
+                        value={ticketCategory}
+                        onChange={(e) => setTicketCategory(e.target.value as any)}
                         className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-white"
                       >
-                        <option value="IMPS">IMPS (₹5 Fee)</option>
-                        <option value="NEFT">NEFT (₹0 Fee)</option>
-                        <option value="UPI">UPI (₹0 Fee)</option>
+                        <option value="RECHARGE_DISPUTE">Recharge Pending / Failed</option>
+                        <option value="REFUND_REQUEST">Wallet Refund Request</option>
+                        <option value="WALLET_ISSUE">Add Money Reconciliation</option>
+                        <option value="KYC_VERIFICATION">KYC Verification Help</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Amount (₹)
+                        Disputed Amount (₹)
                       </label>
                       <input
                         type="number"
-                        min={100}
-                        required
-                        value={withdrawAmount}
-                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        value={ticketAmount}
+                        onChange={(e) => setTicketAmount(e.target.value)}
                         className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
                       />
                     </div>
                   </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={processingTx}
-                    className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
-                  >
-                    Initiate Authorized Bank Payout
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* MODULE 5: WHATSAPP BUSINESS OTP & ALERTS */}
-            {activeWorkspaceTab === 'WHATSAPP_OTP' && (
-              <div className="pt-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                      WhatsApp Business Cloud API — OTP & Alert Verification
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Official Meta Cloud API template verification with 300s expiry and 3-attempt rate limiting.
-                    </p>
-                  </div>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    {otpVerified ? 'Mobile Verified' : 'Verification Pending'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Customer Mobile Number (+91)
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={otpPhone}
-                        onChange={(e) => setOtpPhone(e.target.value)}
-                        className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendWhatsAppOtp}
-                        disabled={processingTx}
-                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold whitespace-nowrap shrink-0"
-                      >
-                        Send WhatsApp OTP
-                      </button>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleVerifyWhatsAppOtp}>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      6-Digit OTP Code {sandboxOtpPreview ? `(Sandbox Code: ${sandboxOtpPreview})` : ''}
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        value={otpInput}
-                        onChange={(e) => setOtpInput(e.target.value)}
-                        placeholder="Enter 6-digit code"
-                        className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                      />
-                      <button
-                        type="submit"
-                        disabled={processingTx || !otpInput}
-                        className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold whitespace-nowrap shrink-0"
-                      >
-                        Verify OTP
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-
-            {/* MODULE 6: CUSTOMER SUPPORT & REFUND DISPUTES */}
-            {activeWorkspaceTab === 'SUPPORT' && (
-              <form onSubmit={handleCreateTicket} className="pt-5 space-y-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                    24x7 Customer Support & Automated Refund Desk
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Raise a dispute for pending recharges or failed debits. Tickets sync directly to the Staff & Admin Panels.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Transaction ID
+                      Description
                     </label>
                     <input
                       type="text"
                       required
-                      value={ticketTxId}
-                      onChange={(e) => setTicketTxId(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono text-slate-900 dark:text-white"
+                      value={ticketSubject}
+                      onChange={(e) => setTicketSubject(e.target.value)}
+                      placeholder="Describe the transaction issue clearly..."
+                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Issue Type
-                    </label>
-                    <select
-                      value={ticketCategory}
-                      onChange={(e) => setTicketCategory(e.target.value as any)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-white"
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={processingTx}
+                      className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold"
                     >
-                      <option value="RECHARGE_DISPUTE">Recharge Pending / Failed</option>
-                      <option value="REFUND_REQUEST">Wallet Refund Request</option>
-                      <option value="WALLET_ISSUE">Add Money Reconciliation</option>
-                      <option value="KYC_VERIFICATION">KYC Verification Help</option>
-                    </select>
+                      Submit Support Ticket
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Disputed Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={ticketAmount}
-                      onChange={(e) => setTicketAmount(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-mono tabular-nums text-slate-900 dark:text-white"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ticketSubject}
-                    onChange={(e) => setTicketSubject(e.target.value)}
-                    placeholder="Describe the transaction issue clearly..."
-                    className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3.5 py-2 text-sm text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={processingTx}
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold"
-                  >
-                    Submit Support Ticket
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-
-          {/* MONTHLY SPENDING & CATEGORY EXPENSE ANALYTICS DASHBOARD (RECHARTS) */}
-          <CustomerSpendingAnalytics
-            ledger={ledger}
-            cashbackEarned={Number(user.cashbackEarned || 0)}
-          />
-
-          {/* LIVE DOUBLE-ENTRY WALLET LEDGER & TRANSACTION HISTORY */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  Double-Entry Wallet Ledger & Passbook
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Every transaction records opening balance, debit/credit posting, closing balance, and idempotency key.
-                </p>
-              </div>
-              <span className="text-xs font-mono tabular-nums text-slate-500">
-                {ledger.length} Entries
-              </span>
+                </form>
+              )}
             </div>
 
-            {ledger.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">
-                No wallet ledger entries yet. Execute a recharge or top-up above to record your first double-entry transaction.
+            {/* MONTHLY SPENDING & CATEGORY EXPENSE ANALYTICS DASHBOARD (RECHARTS) */}
+            <CustomerSpendingAnalytics
+              ledger={ledger}
+              cashbackEarned={Number(user.cashbackEarned || 0)}
+            />
+
+            {/* LIVE DOUBLE-ENTRY WALLET LEDGER & TRANSACTION HISTORY */}
+            <div
+              ref={historySectionRef}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    Double-Entry Wallet Ledger & Passbook
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Every transaction records opening balance, debit/credit posting, closing balance, and idempotency key.
+                  </p>
+                </div>
+                <span className="text-xs font-mono tabular-nums text-slate-500">
+                  {ledger.length} Entries
+                </span>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                      <th className="py-2.5 pr-3">TX ID & Service</th>
-                      <th className="py-2.5 px-3">Target / Provider</th>
-                      <th className="py-2.5 px-3 text-right">Type & Amount</th>
-                      <th className="py-2.5 px-3 text-right">Closing Bal</th>
-                      <th className="py-2.5 pl-3 text-right">Receipt</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs">
-                    {ledger.slice(0, 10).map((item) => (
-                      <tr
-                        key={item.id}
-                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                      >
-                        <td className="py-3 pr-3">
-                          <div className="font-semibold text-slate-900 dark:text-white">
-                            {item.service}
-                          </div>
-                          <div className="text-[11px] font-mono text-slate-500">
-                            {item.txId} · {item.status}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="text-slate-800 dark:text-slate-200 font-medium">
-                            {item.targetAccount}
-                          </div>
-                          <div className="text-[11px] text-slate-500">{item.provider}</div>
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono tabular-nums font-bold">
-                          <span
-                            className={
-                              item.entryType === 'CREDIT'
-                                ? 'text-emerald-600 dark:text-emerald-400'
-                                : 'text-slate-900 dark:text-white'
-                            }
-                          >
-                            {item.entryType === 'CREDIT' ? '+' : '-'}₹{Number(item.amount).toFixed(2)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
-                          ₹{Number(item.balanceAfter).toFixed(2)}
-                        </td>
-                        <td className="py-3 pl-3 text-right">
-                          <button
-                            onClick={() => setReceiptModal(item)}
-                            className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline font-semibold"
-                          >
-                            <Receipt className="w-3.5 h-3.5" />
-                            <span>View</span>
-                          </button>
-                        </td>
+
+              {ledger.length === 0 ? (
+                <div className="py-8 text-center text-sm text-slate-500">
+                  No wallet ledger entries yet. Execute a recharge or top-up above to record your first double-entry transaction.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                        <th className="py-2.5 pr-3">TX ID & Service</th>
+                        <th className="py-2.5 px-3">Target / Provider</th>
+                        <th className="py-2.5 px-3 text-right">Type & Amount</th>
+                        <th className="py-2.5 px-3 text-right">Closing Bal</th>
+                        <th className="py-2.5 pl-3 text-right">Receipt</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 text-xs">
+                      {ledger.slice(0, 10).map((item) => (
+                        <tr
+                          key={item.id}
+                          className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                        >
+                          <td className="py-3 pr-3">
+                            <div className="font-semibold text-slate-900 dark:text-white">
+                              {item.service}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-500">
+                              {item.txId} · {item.status}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="text-slate-800 dark:text-slate-200 font-medium">
+                              {item.targetAccount}
+                            </div>
+                            <div className="text-[11px] text-slate-500">{item.provider}</div>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono tabular-nums font-bold">
+                            <span
+                              className={
+                                item.entryType === 'CREDIT'
+                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  : 'text-slate-900 dark:text-white'
+                              }
+                            >
+                              {item.entryType === 'CREDIT' ? '+' : '-'}₹
+                              {Number(item.amount).toFixed(2)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono tabular-nums text-slate-600 dark:text-slate-400">
+                            ₹{Number(item.balanceAfter).toFixed(2)}
+                          </td>
+                          <td className="py-3 pl-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setReceiptModal(item)}
+                              className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                            >
+                              <Receipt className="w-3.5 h-3.5" />
+                              <span>View</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* NATIVE MOBILE & TABLET FIXED BOTTOM NAVIGATION BAR */}
+      <nav
+        aria-label="Mobile bottom navigation"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(15,23,42,0.08)] px-2 pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="max-w-lg mx-auto grid grid-cols-5 items-center h-16">
+          <button
+            type="button"
+            onClick={() => {
+              setMobileBottomTab('Home');
+              setActiveWorkspaceTab('RECHARGE');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center h-full text-[11px] font-bold transition-colors ${
+              mobileBottomTab === 'Home'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <Home className="w-5 h-5 mb-0.5" />
+            <span>Home</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileBottomTab('History');
+              historySectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center h-full text-[11px] font-bold transition-colors ${
+              mobileBottomTab === 'History'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <History className="w-5 h-5 mb-0.5" />
+            <span>History</span>
+          </button>
+
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileBottomTab('Scan');
+                openModule('UPI_SCAN');
+              }}
+              className="w-14 h-14 -mt-6 rounded-full bg-gradient-to-tr from-[#0039A6] via-[#0052FF] to-[#0284C7] text-white shadow-lg border-4 border-white dark:border-slate-900 flex items-center justify-center active:scale-95 transition-transform"
+              title="UPI Scan & Pay"
+            >
+              <QrCode className="w-6 h-6" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileBottomTab('Offers');
+              offersSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center h-full text-[11px] font-bold transition-colors ${
+              mobileBottomTab === 'Offers'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <Gift className="w-5 h-5 mb-0.5" />
+            <span>Offers</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMobileBottomTab('Profile');
+              openModule('WHATSAPP_OTP');
+            }}
+            className={`flex flex-col items-center justify-center h-full text-[11px] font-bold transition-colors ${
+              mobileBottomTab === 'Profile'
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}
+          >
+            <User className="w-5 h-5 mb-0.5" />
+            <span>Profile</span>
+          </button>
+        </div>
+      </nav>
 
       {/* Transaction Receipt Modal */}
       {receiptModal && (
@@ -1694,6 +1909,7 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setReceiptModal(null)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700"
               >
@@ -1703,25 +1919,35 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
 
             <div className="py-5 space-y-3 text-xs">
               <div className="text-center py-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                <div className="text-slate-500">Transaction Amount ({receiptModal.entryType})</div>
+                <div className="text-slate-500">
+                  Transaction Amount ({receiptModal.entryType})
+                </div>
                 <div className="text-3xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white mt-1">
                   ₹{Number(receiptModal.amount).toFixed(2)}
                 </div>
-                <div className="text-emerald-600 font-semibold mt-1">{receiptModal.status}</div>
+                <div className="text-emerald-600 font-semibold mt-1">
+                  {receiptModal.status}
+                </div>
               </div>
 
               <div className="space-y-2 pt-2">
                 <div className="flex justify-between">
                   <span className="text-slate-500">Transaction ID</span>
-                  <span className="font-mono font-semibold text-slate-900 dark:text-white">{receiptModal.txId}</span>
+                  <span className="font-mono font-semibold text-slate-900 dark:text-white">
+                    {receiptModal.txId}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Gateway / Operator Ref</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-200">{receiptModal.gatewayRef}</span>
+                  <span className="font-mono text-slate-800 dark:text-slate-200">
+                    {receiptModal.gatewayRef}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Idempotency Key</span>
-                  <span className="font-mono text-slate-600 dark:text-slate-400">{receiptModal.idempotencyKey}</span>
+                  <span className="font-mono text-slate-600 dark:text-slate-400">
+                    {receiptModal.idempotencyKey}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Service & Provider</span>
@@ -1731,18 +1957,22 @@ export const CustomerSuperAppView: React.FC<CustomerSuperAppViewProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Target Account</span>
-                  <span className="font-mono text-slate-900 dark:text-white">{receiptModal.targetAccount}</span>
+                  <span className="font-mono text-slate-900 dark:text-white">
+                    {receiptModal.targetAccount}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Opening → Closing Balance</span>
                   <span className="font-mono tabular-nums text-slate-900 dark:text-white">
-                    ₹{Number(receiptModal.balanceBefore).toFixed(2)} → ₹{Number(receiptModal.balanceAfter).toFixed(2)}
+                    ₹{Number(receiptModal.balanceBefore).toFixed(2)} → ₹
+                    {Number(receiptModal.balanceAfter).toFixed(2)}
                   </span>
                 </div>
               </div>
             </div>
 
             <button
+              type="button"
               onClick={() => setReceiptModal(null)}
               className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
             >

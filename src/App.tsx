@@ -415,7 +415,7 @@ export default function App() {
     <ErrorBoundary>
       <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
         {/* TOP BAR CONTRACT: Strictly 3 Zones Separated by gap-8 */}
-        <header className="flex items-center justify-between gap-8 px-6 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
+        <header className="flex items-center justify-between gap-8 px-4 sm:px-6 py-3 bg-[#002D85] text-white border-b border-blue-900/80 sticky top-0 z-30">
           {/* Zone 1: Single text element wordmark */}
           <a
             href="#top"
@@ -423,18 +423,18 @@ export default function App() {
               e.preventDefault();
               setActiveNav('SUPER_APP');
             }}
-            className="text-lg font-extrabold tracking-tight text-blue-700 dark:text-blue-400 whitespace-nowrap shrink-0"
+            className="text-base sm:text-lg font-extrabold tracking-tight text-white whitespace-nowrap shrink-0"
           >
             Recharge Expres
           </a>
 
           {/* Zone 2: 5 concise single-line text navigation links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+          <nav className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm font-semibold text-blue-100 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setActiveNav('SUPER_APP')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
                 activeNav === 'SUPER_APP'
-                  ? 'text-blue-600 dark:text-blue-400 underline underline-offset-8 decoration-2'
+                  ? 'text-amber-300 underline underline-offset-8 decoration-2'
                   : ''
               }`}
             >
@@ -442,9 +442,9 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveNav('SUPER_ADMIN')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
                 activeNav === 'SUPER_ADMIN'
-                  ? 'text-blue-600 dark:text-blue-400 underline underline-offset-8 decoration-2'
+                  ? 'text-amber-300 underline underline-offset-8 decoration-2'
                   : ''
               }`}
             >
@@ -452,9 +452,9 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveNav('STAFF_PANEL')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
                 activeNav === 'STAFF_PANEL'
-                  ? 'text-blue-600 dark:text-blue-400 underline underline-offset-8 decoration-2'
+                  ? 'text-amber-300 underline underline-offset-8 decoration-2'
                   : ''
               }`}
             >
@@ -462,9 +462,9 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveNav('DELIVERABLES')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
                 activeNav === 'DELIVERABLES'
-                  ? 'text-blue-600 dark:text-blue-400 underline underline-offset-8 decoration-2'
+                  ? 'text-amber-300 underline underline-offset-8 decoration-2'
                   : ''
               }`}
             >
@@ -472,13 +472,13 @@ export default function App() {
             </button>
             <button
               onClick={() => setActiveNav('LEGAL')}
-              className={`hover:text-slate-900 dark:hover:text-white transition-colors whitespace-nowrap shrink-0 ${
+              className={`hover:text-white transition-colors whitespace-nowrap shrink-0 ${
                 activeNav === 'LEGAL'
-                  ? 'text-blue-600 dark:text-blue-400 underline underline-offset-8 decoration-2'
+                  ? 'text-amber-300 underline underline-offset-8 decoration-2'
                   : ''
               }`}
             >
-              Legal & Policies
+              Legal
             </button>
           </nav>
 
@@ -487,28 +487,33 @@ export default function App() {
             {fbUser ? (
               <button
                 onClick={handleSignOut}
-                className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 dark:bg-blue-600 rounded-lg hover:bg-slate-800 dark:hover:bg-blue-500 transition-colors whitespace-nowrap shrink-0"
+                className="px-3 py-1.5 text-xs font-bold text-slate-950 bg-amber-400 rounded-lg hover:bg-amber-300 transition-colors whitespace-nowrap shrink-0"
               >
-                Sign Out ({fbUser.displayName?.split(' ')[0] || 'Account'})
+                Sign Out
               </button>
             ) : (
               <button
                 onClick={handleGoogleSignIn}
-                className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap shrink-0"
+                className="px-3 py-1.5 text-xs font-bold text-[#002D85] bg-white rounded-lg hover:bg-blue-50 transition-colors whitespace-nowrap shrink-0"
               >
-                Sign In with Google
+                Sign In
               </button>
             )}
           </div>
         </header>
 
-        {/* Secondary Workspace Toolbar (Below the Fold / Sub-Header) */}
-        <div className="bg-slate-100/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-6 py-2.5">
+        {/* Compact Theme & Session Bar (Hidden on mobile Customer App for pure native edge-to-edge look) */}
+        <div
+          className={`${
+            activeNav === 'SUPER_APP' ? 'hidden md:block' : 'block'
+          } bg-slate-100/80 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 px-6 py-2`}
+        >
           <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4 text-xs">
-            {/* Mobile Nav Links Escape Hatch + Status */}
             <div className="flex flex-wrap items-center gap-3 text-slate-600 dark:text-slate-400">
               <span className="font-semibold text-slate-900 dark:text-white">
-                {fbUser ? `Authenticated: ${fbUser.email}` : 'Interactive Preview Mode (Sign in to persist live Firestore transactions)'}
+                {fbUser
+                  ? `Authenticated: ${fbUser.email}`
+                  : 'Interactive Native App Mode'}
               </span>
               <span aria-hidden="true">·</span>
               <span className="font-mono tabular-nums">
@@ -518,43 +523,28 @@ export default function App() {
               <span>KYC: {userProfile.kycStatus}</span>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Mobile View Switcher */}
-              <div className="flex md:hidden items-center gap-1">
-                {[
-                  { id: 'SUPER_APP', label: 'App' },
-                  { id: 'SUPER_ADMIN', label: 'Admin' },
-                  { id: 'STAFF_PANEL', label: 'Staff' },
-                  { id: 'DELIVERABLES', label: 'APK' },
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => setActiveNav(m.id as any)}
-                    className={`px-2 py-1 rounded text-[11px] font-semibold ${
-                      activeNav === m.id ? 'bg-blue-600 text-white' : 'text-slate-600 dark:text-slate-300'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 transition-colors"
-              >
-                {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5" />}
-                <span>{darkMode ? 'Light Theme' : 'Dark Theme'}</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 transition-colors"
+            >
+              {darkMode ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+              ) : (
+                <Moon className="w-3.5 h-3.5" />
+              )}
+              <span>{darkMode ? 'Light Theme' : 'Dark Theme'}</span>
+            </button>
           </div>
         </div>
 
         {authError && (
-          <div className="max-w-7xl mx-auto px-6 pt-4">
+          <div className="max-w-7xl mx-auto px-4 pt-3">
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex justify-between">
               <span>{authError}</span>
-              <button onClick={() => setAuthError(null)} className="underline font-semibold">
+              <button
+                onClick={() => setAuthError(null)}
+                className="underline font-semibold"
+              >
                 Dismiss
               </button>
             </div>
@@ -582,6 +572,7 @@ export default function App() {
               onPrependTicket={(newTicket) =>
                 setTickets((prev) => [newTicket, ...prev])
               }
+              onNavigateView={setActiveNav}
             />
           )}
 
@@ -619,7 +610,7 @@ export default function App() {
         </main>
 
         {/* Clean Editorial Footer */}
-        <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-6 mt-12">
+        <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-6 pb-24 mt-8">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
             <div>
               © {new Date().getFullYear()} Recharge Expres Fintech Platform. Double-Entry Wallet Ledger & BBPS Multi-Provider Suite.
